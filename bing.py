@@ -2,11 +2,12 @@
 
 import requests as rq
 import itertools
+import re
 
 from bs4 import BeautifulSoup
 
 BING_URL = 'https://www.bing.com/search'
-HEADERS = { 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/ (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36', 'accept-language': 'en' }
+HEADERS = { 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36', 'accept-language': 'en' }
 
 def scrape_results(params):
 
@@ -18,6 +19,9 @@ def scrape_results(params):
     soup = BeautifulSoup(html, 'html.parser')
     anchors = soup.select('#b_results li.b_algo a')
     snippets = soup.select('#b_results li.b_algo p')
+
+    with open('log.html', 'w') as f:
+        f.write(html)
 
     for a, p in zip(anchors, snippets):
         yield { 'url': a['href'], 'name': a.get_text(),
@@ -46,6 +50,28 @@ def search(query, limit=10):
         if count < reach or first > limit:
             break
 
+def _search_keywords(domain, keywords=[]):
+
+    query = 'site:{}'.format(domain)
+
+    if keywords:
+        k_query = ' OR '.join([ '"{}"'.format(k) for k in keywords ])
+        k_query = ' ({})'.format(k_query)
+        query += k_query
+
+    print(query)
+
+    cont = 0
+    result = { k: '' for k in keywords }
+
+    for r in search(query):
+        for k in keywords:
+            if re.search(k, r['snippet'], re.I):
+                result[k] = r['url']
+        cont += 1
+
+    return result, cont
+
 def search_keywords(domain, keywords=[]):
 
     query = 'site:{}'.format(domain)
@@ -54,6 +80,8 @@ def search_keywords(domain, keywords=[]):
         k_query = ' OR '.join([ '"{}"'.format(k) for k in keywords ])
         k_query = ' ({})'.format(k_query)
         query += k_query
+
+    print(query)
 
     cont = 0
     for r in search(query):
