@@ -6,7 +6,25 @@ import itertools
 from bs4 import BeautifulSoup
 
 BING_URL = 'https://www.bing.com/search'
-HEADERS = { 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/ (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36', 'accept-language': 'en' }
+HEADERS = { 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36', 'accept-language': 'en' }
+
+
+def user_agent(headers): #sacar a otro archivo
+    def wrap(func):
+        def wrapper(*args, **kwargs):
+            resp = None
+            retries = 2 # Number of attempts
+            while retries > 0:
+                    resp = func(*args, **kwargs)
+                    if resp > 0: retries = 0
+                    else: 
+                        #random entre los agents y cambiar
+                        retries -= 1
+                        time.sleep(3)
+            return resp
+        return wrapper
+    return wrap
+
 
 def scrape_results(params):
 
@@ -15,13 +33,13 @@ def scrape_results(params):
         return None
 
     html = resp.text
+    #print(html)
     soup = BeautifulSoup(html, 'html.parser')
     anchors = soup.select('#b_results li.b_algo a')
     snippets = soup.select('#b_results li.b_algo p')
 
     for a, p in zip(anchors, snippets):
-        yield { 'url': a['href'], 'name': a.get_text(),
-            'snippet': p.get_text() }
+       yield { 'url': a['href'], 'name': a.get_text(),'snippet': p.get_text() }
 
 # Just a black box don't mess with it
 def search(query, limit=10):
@@ -46,9 +64,11 @@ def search(query, limit=10):
         if count < reach or first > limit:
             break
 
+@user_agent(HEADERS)
 def search_keywords(domain, keywords=[]):
 
     query = 'site:{}'.format(domain)
+    matches = []
 
     if keywords:
         k_query = ' OR '.join([ '"{}"'.format(k) for k in keywords ])
@@ -57,13 +77,33 @@ def search_keywords(domain, keywords=[]):
 
     cont = 0
     for r in search(query):
-        print(r['url'], cont)
+        text = r.get("snippet").lower()
+        for keyword in keywords:
+            if keyword in text:
+                matches.append(r)
         cont += 1
+    print(matches,cont)
 
     return cont
 
+def load_url(filename):
+    urls = []
+    with open(filename, 'r', encoding='utf-8') as f:    
+        urls = f.readlines()
+    if urls:    
+        urls = [x.replace('\u2028','').strip() for x in urls]
+    return urls
+
+def scrape_sites(urls,keywords):
+
+    for url in urls: 
+        print(url)
+        search_keywords(url,keywords)
+
 def main():
-    pass
+    keywords = ["teelaunch", "pillow profits", "printify", "printful", "customcat"]
+    urls = load_url("domains.csv")
+    scrape_sites(urls,keywords)
 
     
 if __name__ == '__main__':
