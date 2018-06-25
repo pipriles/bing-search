@@ -2,29 +2,47 @@
 
 import requests as rq
 import itertools
+import re
+import json
+import util
 
 from bs4 import BeautifulSoup
 
 BING_URL = 'https://www.bing.com/search'
 HEADERS = { 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36', 'accept-language': 'en' }
+MATCHES = []
 
+def write_json(filename, data):
+    if not data: return
+    with open(filename, 'w', encoding='utf8') as f:
+        json.dump(data, f, indent=4)
 
-def user_agent(headers): #sacar a otro archivo
-    def wrap(func):
-        def wrapper(*args, **kwargs):
-            resp = None
-            retries = 2 # Number of attempts
-            while retries > 0:
-                    resp = func(*args, **kwargs)
-                    if resp > 0: retries = 0
-                    else: 
-                        #random entre los agents y cambiar
-                        retries -= 1
-                        time.sleep(3)
-            return resp
-        return wrapper
-    return wrap
+def load_url(filename):
+    urls = []
+    with open(filename, 'r', encoding='utf-8') as f:    
+        urls = f.readlines()
+    if urls:    
+        urls = [x.replace('\u2028','').strip() for x in urls]
+    return urls
 
+@util.user_agent(HEADERS)
+def search_keywords(domain, keywords=[]):
+    query = 'site:{}'.format(domain)
+
+    if keywords:
+        k_query = ' OR '.join([ '"{}"'.format(k) for k in keywords ])
+        k_query = ' ({})'.format(k_query)
+        query += k_query
+
+    cont = 0
+    for r in search(query):
+        text = r.get("snippet").lower()
+        for keyword in keywords:
+            if keyword in text:
+                MATCHES.append(r)
+        cont += 1
+
+    return cont
 
 def scrape_results(params):
 
@@ -33,10 +51,12 @@ def scrape_results(params):
         return None
 
     html = resp.text
-    #print(html)
     soup = BeautifulSoup(html, 'html.parser')
     anchors = soup.select('#b_results li.b_algo a')
     snippets = soup.select('#b_results li.b_algo p')
+
+    with open('log.html', 'w') as f:
+        f.write(html)
 
     for a, p in zip(anchors, snippets):
        yield { 'url': a['href'], 'name': a.get_text(),'snippet': p.get_text() }
@@ -64,41 +84,11 @@ def search(query, limit=10):
         if count < reach or first > limit:
             break
 
-@user_agent(HEADERS)
-def search_keywords(domain, keywords=[]):
-
-    query = 'site:{}'.format(domain)
-    matches = []
-
-    if keywords:
-        k_query = ' OR '.join([ '"{}"'.format(k) for k in keywords ])
-        k_query = ' ({})'.format(k_query)
-        query += k_query
-
-    cont = 0
-    for r in search(query):
-        text = r.get("snippet").lower()
-        for keyword in keywords:
-            if keyword in text:
-                matches.append(r)
-        cont += 1
-    print(matches,cont)
-
-    return cont
-
-def load_url(filename):
-    urls = []
-    with open(filename, 'r', encoding='utf-8') as f:    
-        urls = f.readlines()
-    if urls:    
-        urls = [x.replace('\u2028','').strip() for x in urls]
-    return urls
-
 def scrape_sites(urls,keywords):
-
     for url in urls: 
         print(url)
         search_keywords(url,keywords)
+    write_json("pages.json",MATCHES)
 
 def main():
     keywords = ["teelaunch", "pillow profits", "printify", "printful", "customcat"]
