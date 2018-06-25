@@ -77,7 +77,7 @@ def search_websites(filename):
     data = pd.read_csv(filename)
     data.columns = ['websites']
 
-    websites = data.websites[:5]
+    websites = data.websites
 
     total_websites = len(websites)
     progress = 0
