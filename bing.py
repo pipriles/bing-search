@@ -3,6 +3,7 @@
 import requests as rq
 import itertools
 import re
+import pandas as pd
 
 from bs4 import BeautifulSoup
 
@@ -19,9 +20,6 @@ def scrape_results(params):
     soup = BeautifulSoup(html, 'html.parser')
     anchors = soup.select('#b_results li.b_algo a')
     snippets = soup.select('#b_results li.b_algo p')
-
-    with open('log.html', 'w') as f:
-        f.write(html)
 
     for a, p in zip(anchors, snippets):
         yield { 'url': a['href'], 'name': a.get_text(),
@@ -71,6 +69,21 @@ def _search_keywords(domain, keywords=[]):
         cont += 1
 
     return result, cont
+
+def search_websites(filename):
+
+    # Keywords for Gabriela Youtube Problem
+    keywords = ['buy', 'merch', 'sale', 'shop', 'store']
+    data = pd.read_csv(filename)
+    data.columns = ['websites']
+
+    results = [ _search_keywords(w, keywords) for w in data.websites[:5] ]
+    websites, counts  = tuple(zip(*results))
+
+    frame1 = pd.DataFrame(list(websites))
+    frame2 = pd.DataFrame(list(counts), columns=['Count'])
+
+    return pd.concat([frame1, frame2], axis=1)
 
 def search_keywords(domain, keywords=[]):
 
