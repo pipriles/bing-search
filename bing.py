@@ -77,13 +77,25 @@ def search_websites(filename):
     data = pd.read_csv(filename)
     data.columns = ['websites']
 
-    response = [ _search_keywords(w, keywords) for w in data.websites ]
-    websites, counts  = tuple(zip(*response))
+    websites = data.websites[:5]
 
-    frame1 = pd.DataFrame(list(websites), index=data.websites)
-    frame2 = pd.DataFrame(list(counts), columns=['Count'])
+    total_websites = len(websites)
+    progress = 0
+    scraped_websites = []
+    scraped_counter = []
+
+    for website in websites:
+        result, count = _search_keywords(website, keywords)
+        scraped_websites.append(result)
+        scraped_counter.append(count)
+        progress += 1
+        print('Progress: {:.0f}%'.format(100 * progress / total_websites))
+
+    frame1 = pd.DataFrame(list(scraped_websites))
+    frame2 = pd.DataFrame(list(scraped_counter), columns=['count'])
 
     result = pd.concat([frame1, frame2], axis=1)
+    result.index = websites
     return result
 
 def search_keywords(domain, keywords=[]):
