@@ -77,13 +77,14 @@ def search_websites(filename):
     data = pd.read_csv(filename)
     data.columns = ['websites']
 
-    results = [ _search_keywords(w, keywords) for w in data.websites[:5] ]
-    websites, counts  = tuple(zip(*results))
+    response = [ _search_keywords(w, keywords) for w in data.websites ]
+    websites, counts  = tuple(zip(*response))
 
-    frame1 = pd.DataFrame(list(websites))
+    frame1 = pd.DataFrame(list(websites), index=data.websites)
     frame2 = pd.DataFrame(list(counts), columns=['Count'])
 
-    return pd.concat([frame1, frame2], axis=1)
+    result = pd.concat([frame1, frame2], axis=1)
+    return result
 
 def search_keywords(domain, keywords=[]):
 
