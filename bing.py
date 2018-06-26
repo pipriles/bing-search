@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 
 import requests as rq
+import pandas as pd
 import itertools
 import re
-import pandas as pd
+import json
+import util
 
 from bs4 import BeautifulSoup
 
 BING_URL = 'https://www.bing.com/search'
 HEADERS = { 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36', 'accept-language': 'en' }
+MATCHES = []
 
 def scrape_results(params):
 
@@ -22,8 +25,7 @@ def scrape_results(params):
     snippets = soup.select('#b_results li.b_algo p')
 
     for a, p in zip(anchors, snippets):
-        yield { 'url': a['href'], 'name': a.get_text(),
-            'snippet': p.get_text() }
+       yield { 'url': a['href'], 'name': a.get_text(),'snippet': p.get_text() }
 
 # Just a black box don't mess with it
 def search(query, limit=10):
@@ -47,6 +49,9 @@ def search(query, limit=10):
 
         if count < reach or first > limit:
             break
+#
+# This just returns an array of dict
+# Using specific keywords
 
 def _search_keywords(domain, keywords=[]):
 
@@ -98,8 +103,23 @@ def search_websites(filename):
     result.index = websites
     return result
 
-def search_keywords(domain, keywords=[]):
+##################### Andres Domains ##################### 
 
+def write_json(filename, data):
+    if not data: return
+    with open(filename, 'w', encoding='utf8') as f:
+        json.dump(data, f, indent=4)
+
+def load_url(filename):
+    urls = []
+    with open(filename, 'r', encoding='utf-8') as f:    
+        urls = f.readlines()
+    if urls:    
+        urls = [x.replace('\u2028','').strip() for x in urls]
+    return urls
+
+@util.user_agent(HEADERS)
+def search_keywords(domain, keywords=[]):
     query = 'site:{}'.format(domain)
 
     if keywords:
@@ -107,18 +127,29 @@ def search_keywords(domain, keywords=[]):
         k_query = ' ({})'.format(k_query)
         query += k_query
 
-    print(query)
-
     cont = 0
     for r in search(query):
-        print(r['url'], cont)
+        text = r.get("snippet").lower()
+        for keyword in keywords:
+            if keyword in text:
+                MATCHES.append(r)
         cont += 1
 
     return cont
 
-def main():
-    pass
+def scrape_sites(urls,keywords):
+    for url in urls: 
+        print(url)
+        search_keywords(url,keywords)
+    write_json("pages.json",MATCHES)
 
+##########################################################
+
+def main():
+    keywords = [ "teelaunch", "pillow profits", 
+        "printify", "printful", "customcat"]
+    urls = load_url("domains.csv")
+    scrape_sites(urls, keywords)
     
 if __name__ == '__main__':
     main()
