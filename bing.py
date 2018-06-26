@@ -25,7 +25,8 @@ def scrape_results(params):
     snippets = soup.select('#b_results li.b_algo p')
 
     for a, p in zip(anchors, snippets):
-       yield { 'url': a['href'], 'name': a.get_text(),'snippet': p.get_text() }
+       yield { 'url': a['href'], 'name': a.get_text(),
+               'snippet': p.get_text() }
 
 # Just a black box don't mess with it
 def search(query, limit=10):
