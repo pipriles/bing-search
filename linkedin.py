@@ -61,6 +61,7 @@ def main():
                print(result.get('PROFILE'))
                continue
 
+            print()
             results.append(None)
 
     except KeyboardInterrupt:
