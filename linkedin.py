@@ -43,7 +43,7 @@ def main():
 
     try:
         for index, row in data.iterrows():
-            print('{:.0f}%'.format(index/TOTAL), end=' ')
+            print('{:.0f}%'.format(100*index/TOTAL), end=' ')
             keywords = row.iloc[:3]
 
             profile = row.iloc[4]
