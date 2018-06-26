@@ -37,6 +37,7 @@ def main():
     data.fillna('', inplace=True)
     results = []
 
+    scraped = 0
     OLD_KEYS = [ 'name', 'url' ]
     NEW_KEYS = data.columns[3:5]
     TOTAL = len(data)
@@ -56,10 +57,11 @@ def main():
 
             profile = search_profile(keywords)
             if profile:
-               result = replace_keys(profile, OLD_KEYS, NEW_KEYS)
-               results.append(result)
-               print(result.get('PROFILE'))
-               continue
+                scraped += 1
+                result = replace_keys(profile, OLD_KEYS, NEW_KEYS)
+                results.append(result)
+                print(result.get('PROFILE'))
+                continue
 
             print()
             results.append({})
@@ -68,6 +70,7 @@ def main():
         pass
 
     finally:
+        print('Total scraped:', scraped)
         df1 = data.iloc[:,:3]
         df2 = pd.DataFrame(results)
         df = pd.concat([df1, df2], axis=1)
