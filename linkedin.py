@@ -60,7 +60,7 @@ def main():
                 scraped += 1
                 result = replace_keys(profile, OLD_KEYS, NEW_KEYS)
                 results.append(result)
-                print(result.get('PROFILE'))
+                print(result.get('PROFILE'), '!')
                 continue
 
             print()
@@ -71,8 +71,11 @@ def main():
 
     finally:
         print('Total scraped:', scraped)
+        offset = len(results)
         df1 = data.iloc[:,:3]
-        df2 = pd.DataFrame(results)
+        df2 = data.iloc[offset:,3:5]
+        df3 = pd.DataFrame(results)
+        df2 = pd.concat([df3, df2])
         df = pd.concat([df1, df2], axis=1)
         df.to_csv('results.csv', index=None)
     
