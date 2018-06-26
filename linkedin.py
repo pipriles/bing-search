@@ -62,7 +62,7 @@ def main():
                continue
 
             print()
-            results.append(None)
+            results.append({})
 
     except KeyboardInterrupt:
         pass
