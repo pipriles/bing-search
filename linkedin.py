@@ -68,8 +68,10 @@ def main():
         pass
 
     finally:
-        df = pd.DataFrame(results)
-        df.to_csv('results.csv')
+        df1 = data.iloc[:,:3]
+        df2 = pd.DataFrame(results)
+        df = pd.concat([df1, df2], axis=1)
+        df.to_csv('results.csv', index=None)
     
 if __name__ == '__main__':
     main()
