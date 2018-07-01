@@ -103,7 +103,17 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# Bullshit (Mierda de Toro)
+
+*.html
+*.json
 *.csv
+
 .DS_Store
 
 websites/
+vpn/
+
+# Should not exist
+auth.in
+
