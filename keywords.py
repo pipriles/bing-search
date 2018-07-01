@@ -71,12 +71,14 @@ def search_websites(filename):
     try:
         for index, row in websites.iterrows():
             print('{:.0f}%'.format(100*index/length), end=' ')
-            print('-', row[0])
 
             # Work just first column
             kcolumns = row[1:-1].notna()
-            if kcolumns.any(): continue
+            if kcolumns.any(): 
+                print('-', row[0], '!')
+                continue
 
+            print('-', row[0])
             site = row[0]
             result = keywords_search(site, keywords)
             results.append(result)
