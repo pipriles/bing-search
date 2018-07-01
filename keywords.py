@@ -89,11 +89,9 @@ def search_websites(filename, offset=0):
         # Write that shit
         columns = [ 'Domain', *keywords, '_count' ]
         amount = offset + len(results)
-        print(amount)
 
         # Begin from offset
         df0 = websites.iloc[:offset]
-        print(df0)
 
         # Order columns
         df1 = pd.DataFrame(results, dtype=str)
