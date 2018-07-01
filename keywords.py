@@ -76,6 +76,7 @@ def search_websites(filename):
             kcolumns = row[1:-1].notna()
             if kcolumns.any(): 
                 print('-', row[0], '!')
+                results.append(row.to_dict())
                 continue
 
             print('-', row[0])
