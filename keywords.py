@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-# [-] 00 - VPS1
-# [ ] 01 - Oswald
-# [-] 02 - VPS2
-# [-] 03 - VPS3
-# [ ] 04
-# [ ] 05
-# [ ] 06
-# [ ] 07
-# [ ] 08
+# [x] 00 - VPS1 / Oswald
+# [-] 01 - VPS1 (Uploaded)
+# [-] 02 - VPS2 (Uploaded)
+# [-] 03 - VPS3 (Uploaded)
+# [-] 04 - VPS2 (Uploaded)
+# [ ] 05 - VPS3 (Uploaded)
+# -------------
+# [-] 06 - VPS1 (Uploaded)
+# [-] 07 - VPS2 (Uploaded)
+# [ ] 08 - VPS3 
 # [-] 09 - Javier
 
 import bing
