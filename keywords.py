@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-# [ ] 00
-# [ ] 01
-# [ ] 02
-# [ ] 03
+# [-] 00 - VPS1
+# [ ] 01 - Oswald
+# [-] 02 - VPS2
+# [-] 03 - VPS3
 # [ ] 04
 # [ ] 05
 # [ ] 06
 # [ ] 07
 # [ ] 08
-# [ ] 09
+# [-] 09 - Javier
 
 import bing
 import re
@@ -58,7 +58,7 @@ def prepare_input(filename, keywords=[]):
 
     return pd.concat(df, axis=1)
 
-def search_websites(filename):
+def search_websites(filename, offset=0):
 
     keywords = [ "teelaunch", "pillow profits", 
         "printify", "printful", "customcat"]
@@ -69,17 +69,18 @@ def search_websites(filename):
     results = []
 
     try:
-        for index, row in websites.iterrows():
+        for index, row in websites.iloc[offset:].iterrows():
             print('{:.0f}%'.format(100*index/length), end=' ')
+            print('-', index, row[0], end=' ')
 
             # Work just first column
             kcolumns = row[1:-1].notna()
             if kcolumns.any(): 
-                print('-', row[0], '!')
+                print('!')
                 results.append(row.to_dict())
                 continue
 
-            print('-', row[0])
+            print()
             site = row[0]
             result = keywords_search(site, keywords)
             results.append(result)
@@ -87,27 +88,35 @@ def search_websites(filename):
     finally:
         # Write that shit
         columns = [ 'Domain', *keywords, '_count' ]
-        offset = len(results)
+        amount = offset + len(results)
+        print(amount)
+
+        # Begin from offset
+        df0 = websites.iloc[:offset]
+        print(df0)
 
         # Order columns
         df1 = pd.DataFrame(results, dtype=str)
         df1 = df1[columns]
 
         # Put not scraped sites
-        df2 = websites.iloc[offset:,:]
+        df2 = websites.iloc[amount:]
 
-        df = pd.concat([df1, df2])
+        df = pd.concat([df0, df1, df2])
         df.to_csv('results.csv', index=None)
 
 def main():
 
-    if len(sys.argv) != 2:
-        print('Usage: ./keywords.py [FILENAME]')
+    if len(sys.argv) < 2:
+        print('Usage: ./keywords.py [FILENAME] [OFFSET]') 
         return
 
+    params = dict(enumerate(sys.argv))
+
     try:
-        filename = sys.argv[1]
-        search_websites(filename)
+        filename = params.get(1)
+        offset   = int(params.get(2, 0))
+        search_websites(filename, offset)
     except KeyboardInterrupt:
         pass
 
