@@ -1,21 +1,32 @@
 #!/usr/bin/env python3
-# [x] 00 - VPS1 / Oswald
-# [-] 01 - VPS1 (Uploaded)
-# [-] 02 - VPS2 (Uploaded)
-# [-] 03 - VPS3 (Uploaded)
-# [-] 04 - VPS2 (Uploaded)
-# [ ] 05 - VPS3 (Uploaded)
-# -------------
-# [-] 06 - VPS1 (Uploaded)
-# [-] 07 - VPS2 (Uploaded)
-# [ ] 08 - VPS3 
-# [-] 09 - Javier
+# [ ] 02 Missed
+# [-] 19 Javier
+# --------------
+# Competitors
+# Printify
+# Printful
+# Pillow Profits
+# Gotten
+# Custom Cat
+# ViralStyle
+# Gooten
+# Kite
+# Scalable Press
+# GearLaunch
+# Isikel
+# --------------
+# Shirt
+# Mug
+# Poster
+# Blanket
+# Pillow
 
 import bing
 import re
 import random
 import pandas as pd
 import sys
+import argparse
 
 def _keywords_query(site, keywords=[]):
 
