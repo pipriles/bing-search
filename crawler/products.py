@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # We have to check those with error
-# So we can check if that's another site that has a shop
-# Under the same domain
+# So we can check if that's another site that has 
+# a shop under the same domain
+# Maybe we should change the timeout to 2 seconds
 
 import requests as rq
 import json
@@ -187,6 +188,7 @@ class ShopifySpider:
     def dump_json(self, filename):
         with open(filename, 'w', encoding='utf8') as f:
             json.dump(self.result, f, indent=4)
+            print('JSON dumped')
 
     # Not yet implemented
     def dump_csv(self, filename):
@@ -194,6 +196,7 @@ class ShopifySpider:
         columns = [ 'url', 'vendor', 'type', 'key' ]
         df = pd.DataFrame(self.result)
         df[columns].to_csv(filename, index=None)
+        print('CSV Dumped')
 
 def main():
     keywords = ["teelaunch", "pillow profits", "printify", 
