@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-from urllib.parse import urljoin
 import requests as rq
 import json
 import re
 
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 
 HEADERS = { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36', 'accept-language': 'en' }
 
@@ -32,10 +32,9 @@ def search_key(url,key):
 def scrape_product(product_urls, key):
 
     info = []
-    mregex = re.compile(
+    mregex = re.compile( 
         r'var meta = {"product":{"id":[^,]*,"vendor":"([^"]*)","type":"([^"]*)',
-        flags=re.I 
-    )
+        flags=re.I )
 
     for ur in product_urls:
         res = rq.get(ur, headers=HEADERS, timeout=5)
@@ -80,6 +79,20 @@ def scrape(keywords, urls):
                 print(e)
         write_json(total)
     return total
+
+############################################
+
+# Safe add scheme to website
+def add_scheme(url, scheme='http'):
+
+    if re.match(r'[^\:\/]+\:\/\/', url):
+        return url
+
+    url = re.sub(r'^\:?\/*', '//', url)
+    parsed = urlparse(url, scheme=scheme)
+    return parsed.geturl()
+
+############################################
 
 def main():
     try:
