@@ -8,6 +8,7 @@ import json
 import re
 import pandas as pd
 import sys
+import os
 
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
@@ -221,8 +222,9 @@ def main():
         spider.scrape_websites(websites)
     except KeyboardInterrupt: pass
     finally:
-        spider.dump_json('%s_result.json' % filename)
-        spider.dump_csv('%s_result.csv' % filename)
+        name = os.path.basename(filename)
+        spider.dump_json('%s_result.json' % name)
+        spider.dump_csv('%s_result.csv' % name)
 
 if __name__ == '__main__':
     main()
