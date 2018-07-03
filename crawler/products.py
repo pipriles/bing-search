@@ -190,6 +190,7 @@ class ShopifySpider:
 
     # Not yet implemented
     def dump_csv(self, filename):
+        if not self.result: return 
         columns = [ 'url', 'vendor', 'type', 'key' ]
         df = pd.DataFrame(self.result)
         df[columns].to_csv(filename, index=None)
@@ -206,8 +207,9 @@ def main():
 
     filename = sys.argv[1]
     df = pd.read_csv(filename, index_col=False)
-    websites = df.iloc[:,1] # Shop domain
-    websites = websites[websites != 'REDACTED']
+    # websites = df.iloc[:,1] # Shop domain
+    # websites = websites[websites != 'REDACTED']
+    websites = df['Domain']
     websites = websites.drop_duplicates()
     websites = websites.apply(prepare_url)
 
