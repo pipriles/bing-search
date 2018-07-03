@@ -223,6 +223,7 @@ def main():
     except KeyboardInterrupt: pass
     finally:
         name = os.path.basename(filename)
+        name = os.path.splitext(name)[0]
         spider.dump_json('%s_result.json' % name)
         spider.dump_csv('%s_result.csv' % name)
 
