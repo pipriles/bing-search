@@ -10,6 +10,8 @@ import re
 import pandas as pd
 import sys
 import os
+import threading
+import queue
 
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
@@ -152,18 +154,18 @@ class ShopifySpider:
         for k in self.keywords:
 
             products = []
-            print('- %s:' % k, end=' ')
+            message = '- %s:' % k
 
             try:
                 products = search_key(url, k)
-                print(len(products))
+                print(message, len(products))
 
             except rq.exceptions.HTTPError as e:
-                print('%s...' % str(e)[:16])
+                print(message, '%s...' % str(e)[:16])
                 break
 
             except Exception as e:
-                print('%s...' % str(e)[:73])
+                print(message, '%s...' % str(e)[:73])
                 continue
 
             # Max 2 first products
@@ -198,6 +200,46 @@ class ShopifySpider:
         df[columns].to_csv(filename, index=None)
         print('CSV Dumped')
 
+class SpiderThread(threading.Thread):
+
+    """ Scrape url with multiple threads """
+
+    def __init__(self, spider, _queue):
+        threading.Thread.__init__(self)
+        self._spider = spider
+        self._queue = _queue
+        self._alive = True
+
+    def run(self):
+        while self._alive:
+            item = self._queue.get()
+
+            # If it is None it is poison
+            if item is None: break 
+
+            # Then it should be an url
+            print('Processing', item)
+            self._spider.search_keywords(item)
+            self._queue.task_done()
+
+        print('Thread closed!')
+
+def crawl_websites(websites, spider, N=1):
+
+    _queue = queue.Queue()
+    workers = []
+
+    for x in range(N):
+        s = SpiderThread(spider, _queue)
+        s.start()
+        workers.append(s)
+
+    for url in websites: _queue.put(url)
+
+    # Close it
+    for w in workers: _queue.put(None)
+    for w in workers: w.join()
+
 def main():
     keywords = ["teelaunch", "pillow profits", "printify", 
         "printful", "gotten", "customcat", "custom cat", 
@@ -224,7 +266,8 @@ def main():
 
     try:
         spider = ShopifySpider(keywords)
-        spider.scrape_websites(websites)
+        # spider.scrape_websites(websites)
+        crawl_websites(websites, spider, N=8)
     except KeyboardInterrupt: pass
     finally:
         name = os.path.basename(filename)
