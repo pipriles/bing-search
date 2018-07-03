@@ -21,20 +21,28 @@ def search_key(url, key):
 
     product_urls = []
     kwargs = { 'headers': HEADERS, 'timeout': TIMEOUT }
-    params = {'q':'"'+key+'"'}
+    params = { 'q': '"{}"'.format(key) }
 
     res = rq.get(url, params=params, **kwargs)
     res.raise_for_status() # Raise exception if there was an error
 
-    # List comprehension FTW
-    soup = BeautifulSoup(res.text,"html.parser")
-    anchor = soup.select("a")
-    hrefs = list(map(lambda x: x.get('href'),anchor))
-    hrefs = list(set(hrefs))
-    hrefs = list(filter(lambda x: x != None,hrefs))
-    products = list((filter(lambda x: re.match(r'\/products\/',x),hrefs)))
+    html = res.text
 
-    # Put heuristic here
+    # List comprehension FTW
+    # ----------------------
+    # soup = BeautifulSoup(html,"html.parser")
+    #
+    # anchor = soup.select("a")
+    # hrefs = [ x.get('href') for x in anchor ]
+    # hrefs = list(set(hrefs))
+    # hrefs = [ x for x in hrefs if not x is None ]
+    #
+    # products = [ x for x in hrefs if re.match(r'\/products\/', x) ]
+    # ----------------------
+
+    # Wink wink (Heuristic)
+    products = product_hrefs(html)
+
     for product in products:
         product_urls.append(urljoin(url, product))
 
@@ -44,13 +52,14 @@ def scrape_products(product_urls, key):
 
     data = []
     kwargs = { 'headers': HEADERS, 'timeout': TIMEOUT }
-    mregex = re.compile( 
-        r'var meta = {"product":{"id":[^,]*,"vendor":"([^"]*)","type":"([^"]*)',
-        flags=re.I )
+
+    pattern  = r'var meta = {"product":{"id":[^,]*,"vendor"'
+    pattern += r':"([^"]*)","type":"([^"]*)'
+    mregex = re.compile(pattern, flags=re.I)
 
     for ur in product_urls:
-        res = rq.get(ur, **kwargs)
 
+        res = rq.get(ur, **kwargs)
         if res.status_code != 200: 
             continue
 
@@ -71,42 +80,37 @@ def scrape_products(product_urls, key):
 
     return data
 
-def load_url(filename):
-    urls = []
-    with open(filename, 'r', encoding='utf-8') as f:    
-        urls = f.readlines()
-    if urls:
-    	htt = 'http://'    
-        # Bello el comentario
-    	urls = [htt + x.replace('\u2028','').strip() + "/search" for x in urls] #quiza cambiarlo
-    return urls
+# --------------- Trump's Wall ---------------
 
-def write_json(data):
-    with open("pages.json","w") as f:
-        json.dump(data, f, indent=4)
+def uncomment_soup(html):
+    # Not satisfied with this solution
+    uncommented = re.sub(r'(?:<!--)|(?:-->)', '', html)
+    soup = BeautifulSoup(uncommented, 'html5lib') # Very slow
+    return soup
 
-def scrape(keywords, urls):
-    total = []
-    for url in urls:
-        print(url)
-        for key in keywords:
-            print(key)
-            # Beautiful
-            try:
-                product_urls = search_key(url,key)
-            except rq.exceptions.HTTPError as e:
-                print('Error in url:', e)
-                break
-            try:
-                # They said that with 2 is enough
-                print(product_urls)
-                total += scrape_products(product_urls[:2], key)
-            except Exception as e:
-                print(e)
-        write_json(total)
-    return total
+def product_hrefs(html):
 
-############################################
+    pregex = re.compile(r'products\/')
+    soup = uncomment_soup(html) # Should i do this?
+    result = []
+
+    # Heuristic to avoid extra calls
+    imgs = soup.find_all('img')
+    for img in imgs:
+        parent = img.find_parent('a', href=pregex)
+        if parent:
+            href = parent.get('href')
+            result.append(href)
+
+    # Just in case there is no result
+    if not result:
+        anchors = soup.find_all('a', href=pregex)
+        result = [ a.get('href') for a in anchors ]
+
+    # Remove parameters and duplicates
+    result = [ re.sub(r'(?:\#[^\?]*)?(?:\?.+)?$', '', x) for x in result ]
+    result = list(dict.fromkeys(result)) # Remove duplicates
+    return result
 
 # Safe add scheme to website
 def add_scheme(url, scheme='http'):
@@ -122,14 +126,6 @@ def add_scheme(url, scheme='http'):
 def prepare_url(website):
     url = add_scheme(website)
     return urljoin(url, '/search') if url else None
-
-def quiet_exit(func):
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except KeyboardInterrupt:
-            return
-    return wrapper
 
 class ShopifySpider:
 
@@ -188,18 +184,19 @@ class ShopifySpider:
 
     def dump_json(self, filename):
         with open(filename, 'w', encoding='utf8') as f:
-            json.dump(data, f, indent=4)
+            json.dump(self.result, f, indent=4)
 
     # Not yet implemented
     def dump_csv(self, filename):
+        columns = [ 'url', 'vendor', 'type', 'key' ]
         df = pd.DataFrame(self.result)
-        df.to_csv(filename, index=None)
+        df[columns].to_csv(filename, index=None)
 
-@quiet_exit
 def main():
-    keywords = ["teelaunch", "pillow profits", "printify", "printful", 
-        "gotten", "customcat", "custom cat", "viralstyle", 
-        "gooten", "kite", "scalable press", "gearlaunch", "isikel" ]
+    keywords = ["teelaunch", "pillow profits", "printify", 
+        "printful", "gotten", "customcat", "custom cat", 
+        "viralstyle", "gooten", "kite", "scalable press", 
+        "gearlaunch", "isikel" ]
 
     filename = './bruno.csv'
     df = pd.read_csv(filename, index_col=False)
@@ -210,30 +207,17 @@ def main():
 
     # Test if website is not down
     # Then try to crawl it
+    # -
+    # Assume page is up if there was a
+    # error skip that url
 
     try:
         spider = ShopifySpider(keywords)
         spider.scrape_websites(websites)
+    except KeyboardInterrupt: pass
     finally:
         spider.dump_json('pages.json')
         spider.dump_csv('pages.csv')
-
-    # data = scrape(keywords, websites)
-    # write_json(data)
-
-############################################
-
-# def main():
-#     try:
-#         keywords = ["teelaunch", "pillow profits", "printify", "printful", 
-#             "gotten", "customcat", "custom cat", "viralstyle", 
-#             "gooten", "kite", "scalable press", "gearlaunch", "isikel"]
-# 
-#         urls = load_url("bruno.in") # Fucking pandas
-#         total = scrape(keywords, urls)
-#         write_json(total)
-#     except KeyboardInterrupt:
-#         pass
 
 if __name__ == '__main__':
     main()
