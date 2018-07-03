@@ -7,6 +7,7 @@ import requests as rq
 import json
 import re
 import pandas as pd
+import sys
 
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
@@ -198,7 +199,11 @@ def main():
         "viralstyle", "gooten", "kite", "scalable press", 
         "gearlaunch", "isikel" ]
 
-    filename = './bruno.csv'
+    if len(sys.argv) != 2:
+        print('Usage: ./products.py [FILENAME]')
+        return
+
+    filename = sys.argv[1]
     df = pd.read_csv(filename, index_col=False)
     websites = df.iloc[:,1] # Shop domain
     websites = websites[websites != 'REDACTED']
@@ -216,8 +221,8 @@ def main():
         spider.scrape_websites(websites)
     except KeyboardInterrupt: pass
     finally:
-        spider.dump_json('pages.json')
-        spider.dump_csv('pages.csv')
+        spider.dump_json('%s_result.json' % filename)
+        spider.dump_csv('%s_result.csv' % filename)
 
 if __name__ == '__main__':
     main()
