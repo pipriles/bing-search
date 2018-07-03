@@ -267,7 +267,7 @@ def main():
     try:
         spider = ShopifySpider(keywords)
         # spider.scrape_websites(websites)
-        crawl_websites(websites, spider, N=8)
+        crawl_websites(websites, spider, N=12)
     except KeyboardInterrupt: pass
     finally:
         name = os.path.basename(filename)
