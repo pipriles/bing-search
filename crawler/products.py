@@ -262,6 +262,7 @@ def remove_found(filename, websites):
 
         # Assume first column has the websites
         black = df.iloc[:,0] 
+        print(len(black), 'Blacklisted...')
 
         # Get hostname and drop duplicates
         # This function is slow, improve
