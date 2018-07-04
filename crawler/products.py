@@ -164,7 +164,7 @@ class ShopifySpider:
                 code = e.response.status_code
                 print(message, '%s...' % str(e)[:16])
                 self._error.append({ 'url': url, 
-                    'code': code, 'message': message })
+                    'code': code, 'message': str(e) })
                 break
 
             except Exception as e:
