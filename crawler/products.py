@@ -12,6 +12,7 @@ import sys
 import os
 import threading
 import queue
+import glob
 
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
@@ -193,7 +194,7 @@ class ShopifySpider:
 
     def dump_json(self, filename):
         with open(filename, 'w', encoding='utf8') as f:
-            json.dump(self.result, f, indent=4)
+            json.dump(self.result, f, indent=2)
             print('JSON dumped')
 
     def dump_csv(self, filename):
@@ -263,6 +264,7 @@ def remove_found(filename, websites):
         black = df.iloc[:,0] 
 
         # Get hostname and drop duplicates
+        # This function is slow, improve
         black = websites.apply(hostname)
         black = black.drop_duplicates()
 
@@ -273,24 +275,41 @@ def remove_found(filename, websites):
     except FileNotFoundError: 
         return websites
 
-def main():
-    keywords = ["teelaunch", "pillow profits", "printify", 
-        "printful", "gotten", "customcat", "custom cat", 
-        "viralstyle", "gooten", "kite", "scalable press", 
-        "gearlaunch", "isikel" ]
+def parse_path(path):
 
-    if len(sys.argv) != 2:
-        print('Usage: ./products.py [FILENAME]')
-        return
+    if os.path.isdir(path):
+        path = os.path.join(path, '*.csv')
 
-    filename = sys.argv[1]
-    df = pd.read_csv(filename, index_col=False)
+    files = glob.glob(path)
+    files = [ x for x in files if os.path.isfile(x) ] 
+    dfs   = [ pd.read_csv(csv, dtype=str) for csv in files ]
+    return pd.concat(dfs)
+
+def read_path(files):
+
+    dfs = [ parse_path(p) for p in files ]
+    df  = pd.concat(dfs)
+
     websites = df['Domain']
     websites = websites.drop_duplicates()
     websites = websites.apply(prepare_url)
 
     # Remove blacklisted, it reads as csv
     websites = remove_found('blacklist.in', websites)
+    return websites
+
+def main():
+    keywords = ["teelaunch", "pillow profits", "printify", 
+        "printful", "gotten", "customcat", "custom cat", 
+        "viralstyle", "gooten", "kite", "scalable press", 
+        "gearlaunch", "isikel" ]
+
+    if len(sys.argv) < 2:
+        print('Usage: ./products.py [FILENAME]...')
+        return
+
+    files = sys.argv[1:]
+    websites = read_path(files)
 
     try:
         spider = ShopifySpider(keywords)
@@ -298,7 +317,7 @@ def main():
         crawl_websites(websites, spider, N=12)
     except KeyboardInterrupt: pass
     finally:
-        name = os.path.basename(filename)
+        name = os.path.basename(files[0])
         name = os.path.splitext(name)[0]
         spider.dump_json('%s_result.json' % name)
         spider.dump_csv('%s_result.csv' % name)
