@@ -108,6 +108,7 @@ venv.bak/
 *.html
 *.json
 *.csv
+*.in
 
 .DS_Store
 
@@ -115,5 +116,5 @@ websites/
 vpn/
 
 # Should not exist
-auth.in
+debug
 

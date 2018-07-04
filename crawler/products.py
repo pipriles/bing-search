@@ -139,6 +139,7 @@ class ShopifySpider:
     def __init__(self, keywords):
         self.keywords = keywords 
         self.result = []
+        self._count = 0
 
     def scrape_websites(self, websites):
 
@@ -152,10 +153,8 @@ class ShopifySpider:
     def search_keywords(self, url):
 
         for k in self.keywords:
-
             products = []
             message = '- %s:' % k
-
             try:
                 products = search_key(url, k)
                 print(message, len(products))
@@ -173,6 +172,7 @@ class ShopifySpider:
 
         # Report how much was scraped so far
         print('%s found\n' % len(self.result))
+        self._count += 1
 
     def scrape_products(self, products, k, limit=None):
 
@@ -199,6 +199,12 @@ class ShopifySpider:
         df = pd.DataFrame(self.result)
         df[columns].to_csv(filename, index=None)
         print('CSV Dumped')
+
+    def dump_scraped(self, filename):
+        print('TOTAL SCRAPED: ', self._count)
+        with open(filename, 'w', encoding='utf8') as f: 
+            count = str(self._count)
+            f.write(count)
 
 class SpiderThread(threading.Thread):
 
@@ -240,6 +246,25 @@ def crawl_websites(websites, spider, N=1):
     for w in workers: _queue.put(None)
     for w in workers: w.join()
 
+def hostname(url):
+    url = add_scheme(url, 'http')
+    url = urlparse(url)
+    return url.hostname
+
+def remove_found(filename, websites):
+
+    try:
+        df = pd.read_csv(filename)
+        black = df.iloc[:,0] # Assume first column has the websites
+        black = websites.apply(hostname)
+        black = websites.drop_duplicates()
+        found = websites.isin(black)
+        print(found)
+        return websites[~found]
+
+    except FileNotFoundError: 
+        return websites
+
 def main():
     keywords = ["teelaunch", "pillow profits", "printify", 
         "printful", "gotten", "customcat", "custom cat", 
@@ -252,17 +277,12 @@ def main():
 
     filename = sys.argv[1]
     df = pd.read_csv(filename, index_col=False)
-    # websites = df.iloc[:,1] # Shop domain
-    # websites = websites[websites != 'REDACTED']
     websites = df['Domain']
     websites = websites.drop_duplicates()
     websites = websites.apply(prepare_url)
 
-    # Test if website is not down
-    # Then try to crawl it
-    # -
-    # Assume page is up if there was a
-    # error skip that url
+    # Remove blacklisted, it reads as csv
+    websites = remove_found('blacklist.in', websites)
 
     try:
         spider = ShopifySpider(keywords)
@@ -274,6 +294,9 @@ def main():
         name = os.path.splitext(name)[0]
         spider.dump_json('%s_result.json' % name)
         spider.dump_csv('%s_result.csv' % name)
+        spider.dump_scraped('debug')
+        # I should probably kill the spider workers
+        # too more gracefully
 
 if __name__ == '__main__':
     main()
