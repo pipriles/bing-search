@@ -140,6 +140,7 @@ class ShopifySpider:
         self.keywords = keywords 
         self.result = []
         self._count = 0
+        self._error = []
 
     def scrape_websites(self, websites):
 
@@ -160,7 +161,10 @@ class ShopifySpider:
                 print(message, len(products))
 
             except rq.exceptions.HTTPError as e:
+                code = e.response.status_code
                 print(message, '%s...' % str(e)[:16])
+                self._error.append({ 'url': url, 
+                    'code': code, 'message': message })
                 break
 
             except Exception as e:
@@ -192,7 +196,6 @@ class ShopifySpider:
             json.dump(self.result, f, indent=4)
             print('JSON dumped')
 
-    # Not yet implemented
     def dump_csv(self, filename):
         if not self.result: return 
         columns = [ 'url', 'vendor', 'type', 'key' ]
@@ -200,11 +203,11 @@ class ShopifySpider:
         df[columns].to_csv(filename, index=None)
         print('CSV Dumped')
 
-    def dump_scraped(self, filename):
+    def dump_log(self, filename):
         print('TOTAL SCRAPED: ', self._count)
-        with open(filename, 'w', encoding='utf8') as f: 
-            count = str(self._count)
-            f.write(count)
+        debug = { 'count': self._count, 'errors': self._error }
+        with open(filename, 'w', encoding='utf8') as d: 
+            json.dump(debug, d)
 
 class SpiderThread(threading.Thread):
 
@@ -294,9 +297,10 @@ def main():
         name = os.path.splitext(name)[0]
         spider.dump_json('%s_result.json' % name)
         spider.dump_csv('%s_result.csv' % name)
-        spider.dump_scraped('debug')
+        spider.dump_log('debug.json')
         # I should probably kill the spider workers
         # too more gracefully
 
 if __name__ == '__main__':
     main()
+
