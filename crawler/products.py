@@ -207,7 +207,7 @@ class ShopifySpider:
         print('TOTAL SCRAPED: ', self._count)
         debug = { 'count': self._count, 'errors': self._error }
         with open(filename, 'w', encoding='utf8') as d: 
-            json.dump(debug, d)
+            json.dump(debug, d, indent=2)
 
 class SpiderThread(threading.Thread):
 
@@ -251,18 +251,23 @@ def crawl_websites(websites, spider, N=1):
 
 def hostname(url):
     url = add_scheme(url, 'http')
-    url = urlparse(url)
-    return url.hostname
+    parsed = urlparse(url)
+    return parsed.hostname
 
 def remove_found(filename, websites):
 
     try:
         df = pd.read_csv(filename)
-        black = df.iloc[:,0] # Assume first column has the websites
+
+        # Assume first column has the websites
+        black = df.iloc[:,0] 
+
+        # Get hostname and drop duplicates
         black = websites.apply(hostname)
-        black = websites.drop_duplicates()
+        black = black.drop_duplicates()
+
+        # Match found in websites
         found = websites.isin(black)
-        print(found)
         return websites[~found]
 
     except FileNotFoundError: 
