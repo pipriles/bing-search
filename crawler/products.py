@@ -21,7 +21,7 @@ HEADERS = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36', 
     'accept-language': 'en' 
 }
-TIMEOUT = 5
+TIMEOUT = 3
 
 def search_key(url, key):
 
@@ -266,8 +266,11 @@ def remove_found(filename, websites):
 
         # Get hostname and drop duplicates
         # This function is slow, improve
-        black = websites.apply(hostname)
+        black = black.apply(hostname)
         black = black.drop_duplicates()
+
+        # Sadly ;(
+        websites = websites.apply(hostname)
 
         # Match found in websites
         found = websites.isin(black)
@@ -286,17 +289,17 @@ def parse_path(path):
     dfs   = [ pd.read_csv(csv, dtype=str) for csv in files ]
     return pd.concat(dfs)
 
-def read_path(files):
+def read_path(files, path='blacklist.in'):
 
     dfs = [ parse_path(p) for p in files ]
     df  = pd.concat(dfs)
 
     websites = df['Domain']
     websites = websites.drop_duplicates()
-    websites = websites.apply(prepare_url)
 
     # Remove blacklisted, it reads as csv
-    websites = remove_found('blacklist.in', websites)
+    websites = remove_found(path, websites)
+    websites = websites.apply(prepare_url)
     return websites
 
 def main():
