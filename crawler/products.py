@@ -303,10 +303,13 @@ def read_path(files, path='blacklist.in'):
     return websites
 
 def main():
-    keywords = ["teelaunch", "pillow profits", "printify", 
-        "printful", "gotten", "customcat", "custom cat", 
-        "viralstyle", "gooten", "kite", "scalable press", 
-        "gearlaunch", "isikel" ]
+    # keywords = ["teelaunch", "pillow profits", "printify", 
+    #     "printful", "gotten", "customcat", "custom cat", 
+    #     "viralstyle", "gooten", "kite", "scalable press", 
+    #     "gearlaunch", "isikel" ]
+
+    keywords = [ "shirt", "mug", "poster", "blanket", 
+            "pillow", "gooten" ]
 
     if len(sys.argv) < 2:
         print('Usage: ./products.py [FILENAME]...')
