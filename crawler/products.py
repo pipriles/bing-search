@@ -5,14 +5,15 @@
 # Maybe we should change the timeout to 2 seconds
 
 import requests as rq
+import pandas as pd
 import json
 import re
-import pandas as pd
 import sys
 import os
-import threading
-import queue
 import glob
+
+import functools
+import multiprocessing as mp
 
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
@@ -38,9 +39,9 @@ def search_key(url, key):
     # ----------------------
     # soup = BeautifulSoup(html,"html.parser")
     #
-    # anchor = soup.select("a")
+    # anchor = soup.find_all('a')
     # hrefs = [ x.get('href') for x in anchor ]
-    # hrefs = list(set(hrefs))
+    # hrefs = list(dict.fromkeys(hrefs))
     # hrefs = [ x for x in hrefs if not x is None ]
     #
     # products = [ x for x in hrefs if re.match(r'\/products\/', x) ]
@@ -54,7 +55,7 @@ def search_key(url, key):
 
     return product_urls
 
-def scrape_products(product_urls, key):
+def search_products(product_urls, key):
 
     data = []
     kwargs = { 'headers': HEADERS, 'timeout': TIMEOUT }
@@ -82,7 +83,7 @@ def scrape_products(product_urls, key):
 
         data.append({ 'url': ur, 'vendor': meta.group(1), 
                 'type': meta.group(2), 'key': key })
-        break
+        break # Just one time
 
     return data
 
@@ -115,7 +116,7 @@ def product_hrefs(html):
 
     # Remove parameters and duplicates
     result = [ re.sub(r'(?:\#[^\?]*)?(?:\?.+)?$', '', x) for x in result ]
-    result = list(dict.fromkeys(result)) # Remove duplicates
+    result = list(dict.fromkeys(result)) # Remove duplicates, keep order
     return result
 
 # Safe add scheme to website
@@ -133,127 +134,93 @@ def prepare_url(website):
     url = add_scheme(website)
     return urljoin(url, '/search') if url else None
 
-class ShopifySpider:
-
-    """ Search for keywords inside a shop """
-
-    def __init__(self, keywords):
-        self.keywords = keywords 
-        self.result = []
-        self._count = 0
-        self._error = []
-
-    def scrape_websites(self, websites):
-
-        index = 1
-        for url in websites:
-            # Search keyword inside search
-            print('Processing %s, %s' % (index, url))
-            self.search_keywords(url)
-            index += 1
-
-    def search_keywords(self, url):
-
-        for k in self.keywords:
-            products = []
-            message = '- %s:' % k
-            try:
-                products = search_key(url, k)
-                print(message, len(products))
-
-            except rq.exceptions.HTTPError as e:
-                code = e.response.status_code
-                print(message, '%s...' % str(e)[:16])
-                self._error.append({ 'url': url, 
-                    'code': code, 'message': str(e) })
-                break
-
-            except Exception as e:
-                print(message, '%s...' % str(e)[:73])
-                continue
-
-            # Max 2 first products
-            self.scrape_products(products, k, 2)
-
-        # Report how much was scraped so far
-        print('%s found\n' % len(self.result))
-        self._count += 1
-
-    def scrape_products(self, products, k, limit=None):
-
-        # Scrape each product url and 
-        # search for the keyword
-        try:
-            result = scrape_products(products[:limit], k)
-            self.result += result
-            if result:
-                found = result[0]
-                print('  Found! %s' % found.get('url'))
-        except Exception as e:
-            print('%s...' % str(e)[:73])
-
-    def dump_json(self, filename):
-        with open(filename, 'w', encoding='utf8') as f:
-            json.dump(self.result, f, indent=2)
-            print('JSON dumped')
-
-    def dump_csv(self, filename):
-        if not self.result: return 
-        columns = [ 'url', 'vendor', 'type', 'key' ]
-        df = pd.DataFrame(self.result)
-        df[columns].to_csv(filename, index=None)
-        print('CSV Dumped')
-
-    def dump_log(self, filename):
-        print('TOTAL SCRAPED: ', self._count)
-        debug = { 'count': self._count, 'errors': self._error }
-        with open(filename, 'w', encoding='utf8') as d: 
-            json.dump(debug, d, indent=2)
-
-class SpiderThread(threading.Thread):
-
-    """ Scrape url with multiple threads """
-
-    def __init__(self, spider, _queue):
-        threading.Thread.__init__(self)
-        self._spider = spider
-        self._queue = _queue
-        self._alive = True
-
-    def run(self):
-        while self._alive:
-            item = self._queue.get()
-
-            # If it is None it is poison
-            if item is None: break 
-
-            # Then it should be an url
-            print('Processing', item)
-            self._spider.search_keywords(item)
-            self._queue.task_done()
-
-        print('Thread closed!')
-
-def crawl_websites(websites, spider, N=1):
-
-    _queue = queue.Queue()
-    workers = []
-
-    for x in range(N):
-        s = SpiderThread(spider, _queue)
-        s.start()
-        workers.append(s)
-
-    for url in websites: _queue.put(url)
-
-    # Close it
-    for w in workers: _queue.put(None)
-    for w in workers: w.join()
-
 def hostname(url):
     url = add_scheme(url, 'http')
     parsed = urlparse(url)
     return parsed.hostname
+
+def scrape_keywords(url, keywords=[]):
+
+    found = []
+    MAX_ = 2
+
+    for k in keywords:
+        products = []
+        message = '- %s -> %s:' % (url, k)
+        try:
+            products = search_key(url, k)
+            print(message, len(products))
+
+            # Max 2 first products
+            result = search_products(products[:MAX_], k)
+
+        except rq.exceptions.HTTPError as e:
+            code = e.response.status_code
+            print(message, '%s...' % str(e)[:16])
+            ret =  None, { 'url': url, 
+                'code': code, 'message': str(e) }
+            found.append(ret)
+            break # Try with Javier candidates
+
+        except Exception as e:
+            print(message, '%s...' % str(e)[:73])
+            ret = None, { 'url': url, 'message': str(e) }
+            found.append(ret)
+            continue
+
+        # Shut up interrupt
+        except KeyboardInterrupt: break
+
+        if result:
+            first = result[0]
+            ret = first, None
+            found.append(ret)
+            print('  Found! %s' % first.get('url'))
+
+    return found
+
+def dump_json(filename, data):
+    with open(filename, 'w', encoding='utf8') as fl:
+        json.dump(data, fl, indent=2)
+        print('JSON dumped')
+
+def dump_csv(filename, data):
+    if not data: return 
+    columns = [ 'url', 'vendor', 'type', 'key' ]
+    df = pd.DataFrame(data)
+    df[columns].to_csv(filename, index=None)
+    print('CSV Dumped')
+
+def dump_log(filename, data):
+    with open(filename, 'w', encoding='utf8') as fl: 
+        json.dump(data, fl, indent=2)
+
+def crawl_websites(domains, keys):
+
+    scraped = []
+    errors = []
+    count = 0
+
+    crawler = parallel_scrape(domains, keys)
+
+    for result in crawler:
+
+        for ret, err in result: 
+            if ret: scraped.append(ret)
+            if err: errors.append(err)
+
+        # Report how much was scraped so far
+        print('%s found\n' % len(scraped))
+        count += 1
+
+        yield { 'scraped': scraped,
+            'errors': errors, 'count': count }
+
+def parallel_scrape(domains, keys, N=12):
+
+    with mp.Pool(N) as p:
+        scraper = functools.partial(scrape_keywords, keywords=keys)
+        yield from p.imap_unordered(scraper, domains)
 
 def remove_found(filename, websites):
 
@@ -319,18 +286,22 @@ def main():
     websites = read_path(files)
 
     try:
-        spider = ShopifySpider(keywords)
-        # spider.scrape_websites(websites)
-        crawl_websites(websites, spider, N=12)
-    except KeyboardInterrupt: pass
-    finally:
         name = os.path.basename(files[0])
         name = os.path.splitext(name)[0]
-        spider.dump_json('%s_result.json' % name)
-        spider.dump_csv('%s_result.csv' % name)
-        spider.dump_log('debug.json')
-        # I should probably kill the spider workers
-        # too more gracefully
+
+        progress = crawl_websites(websites, keywords)
+        for stat in progress:
+
+            scraped = stat.get('scraped')
+            debug = { k: stat.get(k) for k in ('count', 'errors') }
+
+            # Dump progress
+            # dump_csv('%s_result.csv' % name, scraped)
+            dump_json('%s_result.json' % name, scraped)
+            dump_log('debug.json', debug)
+
+    except KeyboardInterrupt: 
+        pass
 
 if __name__ == '__main__':
     main()
